@@ -1,10 +1,12 @@
 package Server;
 
 import utils.ConsoleColor;
-import java.io.IOException;
+
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
@@ -20,6 +22,7 @@ public class ConcurrentServer {
     private ServerSocket serverSocket;
     private final List<ClientHandler> clientHandlers = new ArrayList<>();
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
+    private final String messageLogPath = "chatlog.txt";
 
     public static void main(String[] args) {
         ConcurrentServer concurrentServer = new ConcurrentServer(9001);
@@ -80,6 +83,11 @@ public class ConcurrentServer {
                 }
             }
         }
+        try {
+            persistMessageJournal(senderName + ": " +message);
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "UNABLE TO LOG MESSAGE " + e.getMessage());
+        }
     }
     public boolean removeClient(ClientHandler clientHandler) {
 
@@ -131,6 +139,26 @@ public class ConcurrentServer {
             }
         }
         return false;
+    }
+
+    public synchronized void persistMessageJournal(String message) throws IOException {
+        PrintWriter writer = new PrintWriter(new FileWriter(messageLogPath, true), true);
+        writer.println("|" + new Date().getTime() + "| " + message);
+    }
+
+    public synchronized String readFromMessageJournal() {
+        StringBuilder stringBuilder = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new FileReader(messageLogPath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                stringBuilder.append(line).append(System.lineSeparator());
+            }
+        } catch (FileNotFoundException e) {
+            logger.log(Level.SEVERE, "FILE NOT FOUND -> path " + messageLogPath);
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "IO -> " + e.getMessage());
+        }
+        return stringBuilder.toString();
     }
 
     private class ConsoleInputHandler implements Runnable {

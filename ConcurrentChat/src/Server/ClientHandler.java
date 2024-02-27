@@ -5,9 +5,7 @@ import utils.ConsoleColor;
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -45,6 +43,7 @@ public class ClientHandler implements Runnable {
                 if (!server.checkIfNameExists(inputName)) {
                     clientName = inputName;
                     sendMessageSingleLine(ConsoleColor.GREEN.getCode() + "Connected to Server! Enjoy " + ConsoleColor.RESET.getCode());
+                    sendMessage(server.readFromMessageJournal());
                     break;
                 } else {
                     sendMessageSingleLine(ConsoleColor.LIGHT_RED.getCode()+ "Enter another name -- already exists/ not allowed" + ConsoleColor.RESET.getCode());
@@ -59,9 +58,17 @@ public class ClientHandler implements Runnable {
 
                 try {
                     clientMessage = reader.readLine();
-                    if (clientMessage == null || clientMessage.equals("exit")) {
+                    if (clientMessage == null || clientMessage.equals("/exit")) {
+                        sendMessageSingleLine(ConsoleColor.RED.getCode() + "Connection closed... reason: client /exit" + ConsoleColor.RESET.getCode());
+                        logger.log(Level.INFO, clientName + " left the server");
+                        shutdown();
                         break;
                     }
+
+                    if (clientMessage.equals("/log")){
+                        sendMessage(server.readFromMessageJournal());
+                    }
+
                     server.broadcastMessage(clientMessage, this);
 
                 } catch (IOException e) {
@@ -82,7 +89,7 @@ public class ClientHandler implements Runnable {
 
 
 
-    public String getClientName() {
+    public String getClientNameColored() {
         return coloredName;
     }
 

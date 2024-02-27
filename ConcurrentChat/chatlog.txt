@@ -1,0 +1,14 @@
+|Tue Feb 27 16:13:47 WET 2024| user: Mekie podes-me ajudar?
+|Tue Feb 27 16:13:52 WET 2024| user: Que tchata, xau
+|Tue Feb 27 16:13:57 WET 2024| user: /eit
+|Tue Feb 27 16:15:17 WET 2024| user: Jorge: Yo
+|Tue Feb 27 16:15:18 WET 2024| user: Jorge: Bitch
+|Tue Feb 27 16:15:22 WET 2024| user: Mekie: motherfaker
+|Tue Feb 27 16:23:12 WET 2024| user: Bob: /log
+|Tue Feb 27 16:23:43 WET 2024| user: Bob: hello?
+|Tue Feb 27 16:23:46 WET 2024| user: Bob: is good
+|Tue Feb 27 16:23:50 WET 2024| user: Bob: /log
+|1709051376993| Joe: Hello?
+|1709051379260| Joe: Testing logs
+|1709056613518| Joe: /logs
+|1709056616294| Joe: /log
