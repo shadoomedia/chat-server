@@ -5,14 +5,15 @@ import utils.ConsoleColor;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Scanner;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 import java.util.stream.Collectors;
 
 public class ConcurrentServer {
@@ -22,10 +23,14 @@ public class ConcurrentServer {
     private ServerSocket serverSocket;
     private final List<ClientHandler> clientHandlers = new ArrayList<>();
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
-    private final String messageLogPath = "chatlog.txt";
+
+    String messageLogPath;
+
+    private boolean consoleLoggingActive = true;
 
     public static void main(String[] args) {
         ConcurrentServer concurrentServer = new ConcurrentServer(9001);
+        concurrentServer.setupLogger();
         concurrentServer.run();
     }
     public ConcurrentServer(int PORT) {
@@ -73,7 +78,7 @@ public class ConcurrentServer {
         String senderName = sender.getClientSimpleName();
         ConsoleColor senderColor = sender.getColor();
         String formattedMessage = senderColor.getCode() + senderName + ": " + ConsoleColor.RESET.getCode() + message;
-
+        System.out.println(formattedMessage);
         for (ClientHandler clientHandler : clientHandlers) {
             if (clientHandler != sender) {
                 try {
@@ -84,7 +89,25 @@ public class ConcurrentServer {
             }
         }
         try {
-            persistMessageJournal(senderName + ": " +message);
+            persistMessageJournal(senderName + ": " + message);
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "UNABLE TO LOG MESSAGE " + e.getMessage());
+        }
+    }
+    public void broadcastServerMessage(String message) {
+        String formattedMessage = ConsoleColor.GREEN.getCode()  + "ADMIN: " + ConsoleColor.RESET.getCode() + message;
+
+        for (ClientHandler clientHandler : clientHandlers) {
+
+                try {
+                    clientHandler.sendMessage(formattedMessage);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+
+        }
+        try {
+            persistMessageJournal("ADMIN: " + message);
         } catch (IOException e) {
             logger.log(Level.SEVERE, "UNABLE TO LOG MESSAGE " + e.getMessage());
         }
@@ -97,10 +120,28 @@ public class ConcurrentServer {
     }
     public void logConnected(){
         String allNames = clientHandlers.stream()
-                .map(c ->  "'n/p: " + c.getClientSimpleNameIpAndPORT() + "'\n")
+                .map(c ->  "'n/IP/p: " + c.getClientSimpleNameIpAndPORT() + "'\n")
                 .collect(Collectors.joining(""));
         logger.log(Level.INFO, "Clients connected:\n" + allNames);
+    }
 
+    private void setupLogger() {
+        try {
+
+            String logFilePath = "logs/server.log";
+
+            File logDir = new File(logFilePath).getParentFile();
+            if (!logDir.exists()) {
+                logDir.mkdirs();
+            }
+            FileHandler fileHandler = new FileHandler(logFilePath, true);
+            SimpleFormatter formatter = new SimpleFormatter();
+            fileHandler.setFormatter(formatter);
+            logger.addHandler(fileHandler);
+            logger.setUseParentHandlers(consoleLoggingActive);
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "Failed to set up logger: " + e.getMessage(), e);
+        }
     }
     public void kickClient(String clientName) {
         clientName = clientName.trim();
@@ -142,12 +183,29 @@ public class ConcurrentServer {
     }
 
     public synchronized void persistMessageJournal(String message) throws IOException {
+        messageLogPath = "logs/chathistory.log";
+
+        File logDir = new File(messageLogPath).getParentFile();
+        if (!logDir.exists()) {
+            logDir.mkdirs();
+        }
+
         PrintWriter writer = new PrintWriter(new FileWriter(messageLogPath, true), true);
-        writer.println("|" + new Date().getTime() + "| " + message);
+        writer.println("|"
+                + LocalDateTime.now().
+                format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss"))
+                + "| "
+                + message);
     }
 
     public synchronized String readFromMessageJournal() {
         StringBuilder stringBuilder = new StringBuilder();
+        messageLogPath = "logs/chathistory.log";
+
+        File logDir = new File(messageLogPath).getParentFile();
+        if (!logDir.exists()) {
+            logDir.mkdirs();
+        }
         try (BufferedReader reader = new BufferedReader(new FileReader(messageLogPath))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -161,6 +219,18 @@ public class ConcurrentServer {
         return stringBuilder.toString();
     }
 
+    public synchronized void clearChatlogHistory() {
+        try {
+            PrintWriter writer = new PrintWriter(new FileWriter(messageLogPath, false));
+            writer.close();
+            logger.log(Level.INFO, "Chat log history cleared successfully.");
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "Failed to clear chat log history: " + e.getMessage());
+        }
+    }
+
+
+
     private class ConsoleInputHandler implements Runnable {
         @Override
         public void run() {
@@ -171,18 +241,45 @@ public class ConcurrentServer {
             Scanner scanner = new Scanner(System.in);
             while (true) {
                 String input = scanner.nextLine();
-                if (input.startsWith("kick ")) {
-                    String clientName = input.substring(5);
-                    kickClient(clientName);
-                } else if (input.startsWith("names")) {
-                    logConnected();
-                } else {
-                    logger.log(Level.INFO, "Console input: " + input);
-                }
+                processConsoleCommand(input);
             }
         }
+
+        private void processConsoleCommand(String input) {
+            if (input.startsWith("/")) {
+                String[] tokens = input.split(" ", 2);
+                String command = tokens[0];
+                String arguments = tokens.length > 1 ? tokens[1] : "";
+
+                switch (command) {
+                    case "/kick":
+                        kickClient(arguments.trim());
+                        break;
+                    case "/users":
+                        logConnected();
+                        break;
+                    case "/clearhistory":
+                        clearChatlogHistory();
+                        break;
+                    case "/showhistory":
+                        System.out.println(readFromMessageJournal());
+                        break;
+                    case "/togglelogs":
+                        consoleLoggingActive = !consoleLoggingActive;
+                        logger.setUseParentHandlers(consoleLoggingActive);
+                        break;
+                    case "/shout":
+                        broadcastServerMessage(arguments);
+                        break;
+                    default:
+                        logger.log(Level.INFO, "Unknown command: " + command);
+                }
+            } else {
+                logger.log(Level.INFO, "Console input: " + input);
+            }
+        }
+
+
     }
-
-
 }
 
