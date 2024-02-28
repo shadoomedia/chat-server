@@ -8,9 +8,19 @@ The Concurrent Chat Server is a Java-based server application designed to facili
 
 - Concurrent handling of multiple client connections
 - Real-time message broadcasting to all connected clients
+- Direct messaging between different clients
+- Chat history logging
+- Admin tools
 - Support for unique client identification through customizable client names
 - Thread-safe operations to maintain server integrity and stability
 - Simple and intuitive setup for easy deployment and usage
+
+### TODO
+
+- change client username
+- change client colors
+- support dynamic port binding
+- ip banning
 
 ## Technologies Used
 

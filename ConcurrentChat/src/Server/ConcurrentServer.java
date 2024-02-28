@@ -24,7 +24,7 @@ public class ConcurrentServer {
     private final List<ClientHandler> clientHandlers = new ArrayList<>();
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
 
-    String messageLogPath;
+    private String messageLogPath;
 
     private boolean consoleLoggingActive = true;
 
@@ -99,7 +99,7 @@ public class ConcurrentServer {
         ClientHandler recipient = findClientHandlerByName(recipientName.getClientSimpleName());
         if (recipient != null) {
             try {
-                recipient.sendMessage("<whisper>" +senderName + ": " + message);
+                recipient.sendMessage(ConsoleColor.WHISPER.getCode() + "<whisper>" +senderName + ": " + ConsoleColor.DEFAULT.getCode() +  message);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -109,7 +109,7 @@ public class ConcurrentServer {
     }
 
     public void directMessage(String message, ClientHandler recipient) {
-        String formattedMessage = "<whisper>ADMIN: " + message;
+        String formattedMessage = ConsoleColor.ADMIN.getCode() + "<whisper>ADMIN: " + ConsoleColor.DEFAULT.getCode() +  message;
         try {
             recipient.sendMessage(formattedMessage);
         } catch (IOException e) {
@@ -117,7 +117,7 @@ public class ConcurrentServer {
         }
     }
     public void broadcastServerMessage(String message) {
-        String formattedMessage = ConsoleColor.GREEN.getCode()  + "ADMIN: " + ConsoleColor.DEFAULT.getCode() + message;
+        String formattedMessage = ConsoleColor.ADMIN.getCode()  + "ADMIN: " + message + ConsoleColor.DEFAULT.getCode();
 
         for (ClientHandler clientHandler : clientHandlers) {
 
@@ -174,7 +174,7 @@ public class ConcurrentServer {
 
                     logger.log(Level.INFO, "Kicking client: " + clientHandler.getClientSimpleName());
                     logger.log(Level.INFO, "Untracking client: " + clientHandler.getClientSimpleName());
-                    clientHandler.sendMessageSingleLine(ConsoleColor.RED.getCode() + "Connection closed... reason: KICKED" + ConsoleColor.DEFAULT.getCode());
+                    clientHandler.sendMessageSingleLine(ConsoleColor.ERROR_WARNING.getCode() + "Connection closed... reason: KICKED" + ConsoleColor.DEFAULT.getCode());
                     if (clientHandler.shutdown() && removeClient(clientHandler)){
                         logger.log(Level.INFO, "User kicked and untracked...");
                     }
@@ -239,6 +239,36 @@ public class ConcurrentServer {
             logger.log(Level.SEVERE, "IO -> " + e.getMessage());
         }
         return stringBuilder.toString();
+    }
+
+    public  String readLastEntriesFromJournal(int numEntries) {
+        messageLogPath = "logs/chathistory.log";
+
+        File logDir = new File(messageLogPath).getParentFile();
+        if (!logDir.exists()) {
+            logDir.mkdirs();
+        }
+        StringBuilder result = new StringBuilder();
+        try (FileReader fileReader = new FileReader(messageLogPath);
+             BufferedReader bufferedReader = new BufferedReader(fileReader)) {
+
+            Deque<String> lastEntries = new ArrayDeque<>();
+            String line;
+
+            while ((line = bufferedReader.readLine()) != null) {
+                if (lastEntries.size() == numEntries) {
+                    lastEntries.poll();
+                }
+                lastEntries.offer(line);
+            }
+
+            while (!lastEntries.isEmpty()) {
+                result.insert(0, lastEntries.pollLast() + "\n");            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return ConsoleColor.CHAT_HISTORY.getCode() + result.toString() + ConsoleColor.DEFAULT.getCode();
     }
 
     public synchronized void clearChatlogHistory() {

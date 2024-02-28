@@ -34,7 +34,7 @@ public class ClientHandler implements Runnable {
     public void run() {
         logger.log(Level.INFO, Thread.currentThread().getName() + " ready and running");
         try {
-            sendMessageSingleLine(color.YELLOW.getCode() + "Type your name here:" + ConsoleColor.DEFAULT.getCode());
+            sendMessageSingleLine(color.ADMIN.getCode() + "Type your name here:" + ConsoleColor.DEFAULT.getCode());
 
             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             String inputName;
@@ -42,11 +42,11 @@ public class ClientHandler implements Runnable {
                 inputName = reader.readLine();
                 if (!server.checkIfNameExists(inputName)) {
                     clientName = inputName;
-                    sendMessageSingleLine(ConsoleColor.GREEN.getCode() + "Connected to Server! Enjoy " + ConsoleColor.DEFAULT.getCode());
-                    sendMessage(server.readFromMessageJournal());
+                    sendMessageSingleLine(ConsoleColor.ADMIN.getCode() + "Welcome " + this.getColor().getCode() + clientName + ConsoleColor.DEFAULT.getCode());
+                    sendMessage(server.readLastEntriesFromJournal(10));
                     break;
                 } else {
-                    sendMessageSingleLine(ConsoleColor.LIGHT_RED.getCode()+ "Enter another name -- already exists/ not allowed" + ConsoleColor.DEFAULT.getCode());
+                    sendMessageSingleLine(ConsoleColor.ERROR_WARNING.getCode()+ "Enter another name -- already exists/ not allowed" + ConsoleColor.DEFAULT.getCode());
                 }
             }
 
@@ -58,33 +58,30 @@ public class ClientHandler implements Runnable {
                 try {
                     clientMessage = reader.readLine();
                     if (clientMessage == null || clientMessage.equals("/exit")) {
-                        sendMessageSingleLine(ConsoleColor.RED.getCode() + "Connection closed... reason: client /exit" + ConsoleColor.DEFAULT.getCode());
+                        sendMessageSingleLine(ConsoleColor.ERROR_WARNING.getCode() + "Connection closed... reason: client /exit" + ConsoleColor.DEFAULT.getCode());
                         logger.log(Level.INFO, clientName + " left the server");
                         shutdown();
                         break;
                     }
 
-                    // Check if the message is a private message
                     if (clientMessage.startsWith("@")) {
-                        // Find the index of the colon character ':'
                         int colonIndex = clientMessage.indexOf(':');
                         if (colonIndex != -1) {
-                            // Extract the recipient names starting from "@" and ending before the colon
                             String recipientNames = clientMessage.substring(1, colonIndex).trim();
-                            String message = clientMessage.substring(colonIndex + 1).trim(); // Message starts after the colon
+                            String message = clientMessage.substring(colonIndex + 1).trim();
 
-                            // Split recipient names by whitespace and send message to each recipient
                             String[] recipientNameArray = recipientNames.split("\\s*,\\s*");
                             for (String recipientName : recipientNameArray) {
                                 ClientHandler recipient = server.findClientHandlerByName(recipientName);
                                 if (recipient != null) {
                                     server.directMessageToRecipient(message,this.getClientSimpleName(), recipient);
                                 } else {
-                                    logger.log(Level.INFO, "Recipient not found: " + recipientName);
+                                    sendMessageSingleLine(ConsoleColor.ERROR_WARNING.getCode() + "" + ConsoleColor.DEFAULT.getCode());
+                                    logger.log(Level.INFO, "User not found: " + recipientName);
                                 }
                             }
                         } else {
-                            sendMessageSingleLine(ConsoleColor.RED.getCode() + "Invalid whisper format. Please use: @recipientName: message" + ConsoleColor.DEFAULT.getCode());
+                            sendMessageSingleLine(ConsoleColor.ERROR_WARNING.getCode() + "Invalid whisper format. Please use: '@username/user names' + ':' + 'message'" + ConsoleColor.DEFAULT.getCode());
                         }
                         continue;
                     }
