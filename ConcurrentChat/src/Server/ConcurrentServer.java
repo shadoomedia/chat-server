@@ -77,7 +77,7 @@ public class ConcurrentServer {
     public void broadcastMessage(String message, ClientHandler sender) {
         String senderName = sender.getClientSimpleName();
         ConsoleColor senderColor = sender.getColor();
-        String formattedMessage = senderColor.getCode() + senderName + ": " + ConsoleColor.RESET.getCode() + message;
+        String formattedMessage = senderColor.getCode() + senderName + ": " + ConsoleColor.DEFAULT.getCode() + message;
         System.out.println(formattedMessage);
         for (ClientHandler clientHandler : clientHandlers) {
             if (clientHandler != sender) {
@@ -94,8 +94,30 @@ public class ConcurrentServer {
             logger.log(Level.SEVERE, "UNABLE TO LOG MESSAGE " + e.getMessage());
         }
     }
+
+    public void directMessageToRecipient(String message, String senderName, ClientHandler recipientName) {
+        ClientHandler recipient = findClientHandlerByName(recipientName.getClientSimpleName());
+        if (recipient != null) {
+            try {
+                recipient.sendMessage("<whisper>" +senderName + ": " + message);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            logger.log(Level.INFO, "Recipient not found: " + recipientName);
+        }
+    }
+
+    public void directMessage(String message, ClientHandler recipient) {
+        String formattedMessage = "<whisper>ADMIN: " + message;
+        try {
+            recipient.sendMessage(formattedMessage);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
     public void broadcastServerMessage(String message) {
-        String formattedMessage = ConsoleColor.GREEN.getCode()  + "ADMIN: " + ConsoleColor.RESET.getCode() + message;
+        String formattedMessage = ConsoleColor.GREEN.getCode()  + "ADMIN: " + ConsoleColor.DEFAULT.getCode() + message;
 
         for (ClientHandler clientHandler : clientHandlers) {
 
@@ -152,7 +174,7 @@ public class ConcurrentServer {
 
                     logger.log(Level.INFO, "Kicking client: " + clientHandler.getClientSimpleName());
                     logger.log(Level.INFO, "Untracking client: " + clientHandler.getClientSimpleName());
-                    clientHandler.sendMessageSingleLine(ConsoleColor.RED.getCode() + "Connection closed... reason: KICKED" + ConsoleColor.RESET.getCode());
+                    clientHandler.sendMessageSingleLine(ConsoleColor.RED.getCode() + "Connection closed... reason: KICKED" + ConsoleColor.DEFAULT.getCode());
                     if (clientHandler.shutdown() && removeClient(clientHandler)){
                         logger.log(Level.INFO, "User kicked and untracked...");
                     }
@@ -229,6 +251,16 @@ public class ConcurrentServer {
         }
     }
 
+    public ClientHandler findClientHandlerByName(String name) {
+        for (ClientHandler clientHandler : clientHandlers) {
+            if (clientHandler.getClientSimpleName().equalsIgnoreCase(name)) {
+                return clientHandler;
+            }
+        }
+        return null; // Return null if the client handler with the specified name is not found
+    }
+
+
 
 
     private class ConsoleInputHandler implements Runnable {
@@ -244,9 +276,27 @@ public class ConcurrentServer {
                 processConsoleCommand(input);
             }
         }
-
         private void processConsoleCommand(String input) {
-            if (input.startsWith("/")) {
+            if (input.startsWith("@")) {
+                int colonIndex = input.indexOf(':');
+                if (colonIndex != -1) {
+                    String recipientNames = input.substring(1, colonIndex).trim();
+                    String message = input.substring(colonIndex + 1).trim(); // Message starts after the colon
+
+                    String[] recipientNameArray = recipientNames.split("\\s*,\\s*");
+                    for (String recipientName : recipientNameArray) {
+                        ClientHandler recipient = findClientHandlerByName(recipientName);
+                        if (recipient != null) {
+                            directMessage(message, recipient);
+                        } else {
+                            logger.log(Level.INFO, "Recipient not found: " + recipientName);
+                        }
+                    }
+                } else {
+                    logger.log(Level.INFO, "Invalid format. Please use: @recipientName1 recipientName2: message");
+                }
+            }
+            else if (input.startsWith("/")) {
                 String[] tokens = input.split(" ", 2);
                 String command = tokens[0];
                 String arguments = tokens.length > 1 ? tokens[1] : "";
@@ -278,6 +328,7 @@ public class ConcurrentServer {
                 logger.log(Level.INFO, "Console input: " + input);
             }
         }
+
 
 
     }

@@ -1,7 +1,8 @@
 package utils;
 
 public enum ConsoleColor {
-    RESET("\u001B[0m"),
+    DEFAULT("\u001B[0m"),
+    WHISPER("\u001B[96m"),
     RED("\u001B[31m"),
     GREEN("\u001B[32m"),
     YELLOW("\u001B[33m"),
@@ -14,8 +15,7 @@ public enum ConsoleColor {
     LIGHT_GREEN("\u001B[92m"),
     LIGHT_YELLOW("\u001B[93m"),
     LIGHT_BLUE("\u001B[94m"),
-    LIGHT_PURPLE("\u001B[95m"),
-    LIGHT_CYAN("\u001B[96m");
+    LIGHT_PURPLE("\u001B[95m");
 
     private final String code;
 
@@ -30,7 +30,7 @@ public enum ConsoleColor {
     // Get a random ConsoleColor
     public static ConsoleColor getRandomColor() {
         ConsoleColor[] colors = ConsoleColor.values();
-        int randomIndex = (int) (Math.random() * colors.length);
+        int randomIndex = 2 + (int) (Math.random() * colors.length-1);
         return colors[randomIndex];
     }
 }
