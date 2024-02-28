@@ -51,7 +51,7 @@ public class ClientHandler implements Runnable {
             }
 
             logger.log(Level.INFO, clientName + " name entered for " + clientSocket.getInetAddress() + " PORT:" + getClientPort());
-            coloredName = color.getCode() + clientName + ConsoleColor.DEFAULT.getCode(); // Apply color to the client's name
+            coloredName = color.getCode() + clientName + ConsoleColor.DEFAULT.getCode();
 
             String clientMessage;
             while (!clientSocket.isClosed()) {
